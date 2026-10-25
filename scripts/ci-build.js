@@ -57,12 +57,14 @@ function api(method, pathname, body, host) {
 function download(url, dest) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
+    const headers = { 'user-agent': 'deepchat-ci/1.0', 'accept': 'application/vnd.github+json' };
+    if (u.host === 'api.github.com') headers['authorization'] = 'Bearer ' + TOKEN;
     const req = https.request({
       host: u.host,
       path: u.pathname + u.search,
       method: 'GET',
       timeout: 120000,
-      headers: { 'user-agent': 'deepchat-ci/1.0', 'authorization': 'Bearer ' + TOKEN, 'accept': 'application/vnd.github+json' }
+      headers: headers
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
@@ -207,21 +209,27 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const runInfo = await api('GET', '/repos/' + me.login + '/' + REPO_NAME + '/actions/runs/' + runId);
 
   if (conclusion !== 'success') {
-    console.log('==> 编译失败，抓取日志');
-    const jobs = await api('GET', '/repos/' + me.login + '/' + REPO_NAME + '/actions/runs/' + runId + '/jobs');
-    const job = (jobs.jobs || [])[0];
-    if (job) {
-      const logPath = path.join(ROOT, '.ci-tools', 'build-log.txt');
-      try {
-        await download('https://api.github.com/repos/' + me.login + '/' + REPO_NAME + '/actions/jobs/' + job.id + '/logs', logPath);
-        const text = fs.readFileSync(logPath, 'utf8');
-        const lines = text.split('\n');
-        const errs = lines.filter((l) => /error:|\*\* BUILD FAILED|The following build commands failed/i.test(l));
-        console.log('---- 关键错误 ----');
-        console.log(errs.slice(0, 40).join('\n') || text.slice(-4000));
-      } catch (e) {
-        console.log('    日志获取失败: ' + e.message);
-      }
+    console.log('==> 编译失败，抓取构建日志');
+    try {
+      const arts = await api('GET', '/repos/' + me.login + '/' + REPO_NAME + '/actions/runs/' + runId + '/artifacts');
+      const logArt = (arts.artifacts || []).find((a) => a.name === 'build-log');
+      if (!logArt) throw new Error('没有 build-log artifact');
+      const zipPath = path.join(ROOT, '.ci-tools', 'build-log.zip');
+      await download('https://api.github.com/repos/' + me.login + '/' + REPO_NAME + '/actions/artifacts/' + logArt.id + '/zip', zipPath);
+      const dir = path.join(ROOT, '.ci-tools', 'build-log');
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.mkdirSync(dir, { recursive: true });
+      execFileSync('tar.exe', ['-xf', zipPath, '-C', dir]);
+      const logFile = collectFiles(dir, dir, []).find((f) => f.endsWith('.log'));
+      if (!logFile) throw new Error('日志文件不存在');
+      const text = fs.readFileSync(path.join(dir, logFile), 'utf8');
+      fs.writeFileSync(path.join(ROOT, '.ci-tools', 'build-log.txt'), text);
+      const lines = text.split('\n');
+      const errs = lines.filter((l) => /error:|fatal error:|\*\* BUILD FAILED|xcodebuild: error|The following build commands failed/i.test(l));
+      console.log('---- 关键错误（共 ' + errs.length + ' 行）----');
+      console.log(errs.slice(0, 50).join('\n') || text.slice(-3000));
+    } catch (e) {
+      console.log('    日志获取失败: ' + e.message);
     }
     console.log('    运行地址: ' + runInfo.html_url);
     process.exit(1);
