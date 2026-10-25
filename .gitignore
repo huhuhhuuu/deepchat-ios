@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+build/
+*.xcarchive
+*.ipa
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+*.moved-aside
+project.xcworkspace/xcuserdata/
+
+# 本地产物
+scripts/__pycache__/
+*.pyc
