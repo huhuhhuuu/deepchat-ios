@@ -82,58 +82,49 @@ struct EmptyStateView: View {
 
     private struct Suggestion: Identifiable {
         let id = UUID()
-        let icon: String
+        let emoji: String
         let title: String
         let prompt: String
     }
 
     private let suggestions: [Suggestion] = [
-        Suggestion(icon: "square.and.pencil",
-                   title: "帮我写一份周报",
-                   prompt: "帮我写一份本周工作周报，包含完成事项、问题和下周计划。"),
-        Suggestion(icon: "lightbulb",
-                   title: "解释一个概念",
-                   prompt: "用一个生活化的比喻解释什么是「向量数据库」。"),
-        Suggestion(icon: "character.book.closed",
-                   title: "翻译并润色",
-                   prompt: "把这段话翻译成地道英文，并说明你的用词选择。"),
-        Suggestion(icon: "chevron.left.forwardslash.chevron.right",
-                   title: "写一段代码",
-                   prompt: "用 Python 实现快速排序，并解释时间复杂度。")
+        Suggestion(emoji: "🐟",
+                   title: "陪我聊聊天",
+                   prompt: "今天有点累，陪我随便聊聊吧，说点轻松的事。"),
+        Suggestion(emoji: "🎂",
+                   title: "写段祝福",
+                   prompt: "帮我写一段给好朋友的生日祝福，语气轻快一点、别太肉麻。"),
+        Suggestion(emoji: "🍜",
+                   title: "今晚吃什么",
+                   prompt: "今晚吃什么好呢？给我三个简单好做、半小时内能搞定的菜。"),
+        Suggestion(emoji: "💡",
+                   title: "讲点冷知识",
+                   prompt: "讲三个有趣的冷知识，每个不超过两句话。")
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 12) {
-                BrandMark(size: 54, radius: 16)
-                Text("我是 DeepChat，很高兴见到你！")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.primary)
-                Text("直接接入你自己的大模型 API，不经过任何中转服务器。")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-            .padding(.top, 18)
+            header
 
             if !store.hasAnyConfiguredProvider {
                 setupCard
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("试试这样问")
-                    .font(.system(size: 13, weight: .semibold))
+                Text("可以这样开始")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .tracking(0.6)
                     .foregroundStyle(Theme.textSecondary)
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
                           spacing: 10) {
-                    ForEach(suggestions, id: \.title) { item in
+                    ForEach(suggestions) { item in
                         Button {
                             onSuggestion(item.prompt)
                         } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Image(systemName: item.icon)
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(Theme.accent)
+                            VStack(alignment: .leading, spacing: 9) {
+                                Text(item.emoji)
+                                    .font(.system(size: 18))
                                 Text(item.title)
                                     .font(.system(size: 13.5, weight: .medium))
                                     .foregroundStyle(.primary)
@@ -153,8 +144,56 @@ struct EmptyStateView: View {
                 }
             }
 
-            Spacer(minLength: 20)
+            Spacer(minLength: 12)
         }
+    }
+
+    // MARK: 头部
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(Theme.accent.opacity(0.20))
+                    .frame(width: 150, height: 150)
+                    .blur(radius: 46)
+
+                BrandMark(size: 62, radius: 19)
+                    .overlay(alignment: .topTrailing) {
+                        Text("🐾")
+                            .font(.system(size: 15))
+                            .offset(x: 8, y: -8)
+                    }
+            }
+            .padding(.bottom, 16)
+
+            Text("小圆的大肥鱼")
+                .font(.system(size: 11.5, weight: .semibold))
+                .tracking(4)
+                .foregroundStyle(Theme.textSecondary.opacity(0.9))
+
+            Text("小圆专属喵")
+                .font(.system(size: 32, weight: .heavy))
+                .italic()
+                .foregroundStyle(Theme.accentGradient)
+                .padding(.top, 6)
+
+            Text("今天也要开开心心呀～ 想聊什么、想让我帮你做什么，直接说就好喵。")
+                .font(.system(size: 14))
+                .lineSpacing(4)
+                .foregroundStyle(Theme.textSecondary)
+                .padding(.top, 10)
+
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9.5, weight: .semibold))
+                Text("本机直连 · 不经过任何中转服务器")
+                    .font(.system(size: 11.5))
+            }
+            .foregroundStyle(Theme.textSecondary.opacity(0.75))
+            .padding(.top, 12)
+        }
+        .padding(.top, 20)
     }
 
     private var setupCard: some View {

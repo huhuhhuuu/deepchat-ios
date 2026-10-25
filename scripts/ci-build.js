@@ -97,6 +97,17 @@ function collectFiles(dir, base, list) {
   return list;
 }
 
+/** 不加任何过滤地列出目录下所有文件（下载产物时用） */
+function collectAll(dir, base, list) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    const rel = path.relative(base, full).replace(/\\/g, '/');
+    if (entry.isDirectory()) collectAll(full, base, list);
+    else list.push(rel);
+  }
+  return list;
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
@@ -251,7 +262,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   fs.mkdirSync(extractDir, { recursive: true });
   execFileSync('tar.exe', ['-xf', zipPath, '-C', extractDir]);
 
-  const ipa = collectFiles(extractDir, extractDir, []).find((f) => f.endsWith('.ipa'));
+  const ipa = collectAll(extractDir, extractDir, []).find((f) => f.toLowerCase().endsWith('.ipa'));
   if (!ipa) throw new Error('解压后没有找到 .ipa');
   const finalPath = path.join(outDir, path.basename(ipa));
   fs.copyFileSync(path.join(extractDir, ipa), finalPath);

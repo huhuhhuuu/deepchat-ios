@@ -114,7 +114,7 @@ struct SettingsView: View {
                 } header: {
                     Text("关于")
                 } footer: {
-                    Text("DeepChat 是一个纯客户端应用：所有请求都由本机直接发送到你在设置里填写的接口地址。")
+                    Text("「小圆的大肥鱼」是一个纯客户端应用：所有请求都由本机直接发送到你在设置里填写的接口地址。")
                 }
             }
             .navigationTitle("设置")

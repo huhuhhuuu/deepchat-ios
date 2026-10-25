@@ -96,9 +96,8 @@ struct BrandMark: View {
             .fill(Theme.accentGradient)
             .frame(width: size, height: size)
             .overlay(
-                Text("D")
-                    .font(.system(size: size * 0.52, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
+                Text("🐟")
+                    .font(.system(size: size * 0.46))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: radius ?? size * 0.28, style: .continuous)

@@ -1,6 +1,8 @@
-# DeepChat · iOS
+# 小圆的大肥鱼 · iOS
 
 一个**纯客户端**的 AI 聊天 App：直接调用你填写的模型接口，没有任何中转服务器，API Key 只保存在本机 Keychain。界面参考 iOS 版 DeepSeek：居中模型切换、左侧历史、底部胶囊输入框 +「深度思考」开关、助手消息支持 Markdown 与思考过程折叠。
+
+主界面文案以「小圆专属喵」为主题，App 显示名为 **小圆的大肥鱼**。
 
 - 最低系统：**iOS 17.0**
 - 开发工具：**Xcode 15 及以上**（Swift 5.9 / SwiftUI）
@@ -81,6 +83,17 @@ TEAM_ID=你的团队ID ./scripts/build-ipa.sh
 
 > 未签名 IPA 不能直接双击安装，必须经过第 4 步用你的 Apple ID 重新签名（免费账号 7 天有效）。
 > 如果你有付费开发者账号，也可以把证书和描述文件配成仓库 Secrets，工作流里改成正常签名导出。
+
+### 全自动版本（本仓库已经跑通）
+
+`scripts/ci-build.js` 用一个 GitHub Token 就能完成：建仓库 → 上传全部源码 → 触发 macOS 编译 → 下载 IPA 到 `dist/`。
+
+```bash
+node scripts/ci-build.js .ci-tools/token.txt deepchat-ios
+```
+
+Token 需要 `repo` + `workflow` 两个权限。编译失败时会自动把 xcodebuild 的错误行抓回来。
+
 
 
 ---
