@@ -251,61 +251,85 @@ final class AppStore: ObservableObject {
 
     // MARK: 流式执行
 
+    /// 流式缓冲：按时间节流写回，避免每个 token 都触发一次视图刷新
+    private struct StreamBuffer {
+        var text = ""
+        var reasoning = ""
+        var firstTokenAt: Date?
+        var lastFlush = Date.distantPast
+    }
+
+    private func flushBuffer(_ buffer: inout StreamBuffer,
+                             conversationID: UUID,
+                             messageID: UUID,
+                             startedAt: Date,
+                             force: Bool = false) {
+        let now = Date()
+        guard force || now.timeIntervalSince(buffer.lastFlush) > 0.05 else { return }
+        buffer.lastFlush = now
+        applyBuffers(conversationID: conversationID,
+                     messageID: messageID,
+                     text: buffer.text,
+                     reasoning: buffer.reasoning,
+                     firstTokenAt: buffer.firstTokenAt,
+                     startedAt: startedAt)
+    }
+
     private func runStream(request: ChatRequest, conversationID: UUID, messageID: UUID) {
         isStreaming = true
         let startedAt = Date()
 
         streamTask = Task { [weak self] in
             guard let self else { return }
-            var buffer = ""
-            var reasoningBuffer = ""
-            var lastFlush = Date.distantPast
-            var firstTokenAt: Date?
-            var finished = false
-
-            func flush(force: Bool = false) {
-                let now = Date()
-                guard force || now.timeIntervalSince(lastFlush) > 0.05 else { return }
-                lastFlush = now
-                self.applyBuffers(conversationID: conversationID,
-                                  messageID: messageID,
-                                  text: buffer,
-                                  reasoning: reasoningBuffer,
-                                  firstTokenAt: firstTokenAt,
-                                  startedAt: startedAt)
-            }
+            var buffer = StreamBuffer()
+            var completed = false
 
             do {
                 for try await event in APIClient.shared.stream(request) {
                     if Task.isCancelled { break }
                     switch event {
                     case .text(let chunk):
-                        if firstTokenAt == nil { firstTokenAt = Date() }
-                        buffer += chunk
-                        flush()
+                        if buffer.firstTokenAt == nil { buffer.firstTokenAt = Date() }
+                        buffer.text += chunk
+                        self.flushBuffer(&buffer,
+                                         conversationID: conversationID,
+                                         messageID: messageID,
+                                         startedAt: startedAt)
                     case .reasoning(let chunk):
-                        if firstTokenAt == nil { firstTokenAt = Date() }
-                        reasoningBuffer += chunk
-                        flush()
+                        if buffer.firstTokenAt == nil { buffer.firstTokenAt = Date() }
+                        buffer.reasoning += chunk
+                        self.flushBuffer(&buffer,
+                                         conversationID: conversationID,
+                                         messageID: messageID,
+                                         startedAt: startedAt)
                     case .usage(let usage):
                         self.applyUsage(conversationID: conversationID, messageID: messageID, usage: usage)
                     case .finished:
-                        finished = true
+                        completed = true
                     }
                 }
             } catch let error as APIError {
-                self.applyError(conversationID: conversationID, messageID: messageID, error: error, partial: buffer)
+                self.applyError(conversationID: conversationID,
+                                messageID: messageID,
+                                error: error,
+                                partial: buffer.text)
             } catch {
                 let apiError = APIError(status: 0, message: error.localizedDescription)
-                self.applyError(conversationID: conversationID, messageID: messageID, error: apiError, partial: buffer)
+                self.applyError(conversationID: conversationID,
+                                messageID: messageID,
+                                error: apiError,
+                                partial: buffer.text)
             }
 
-            flush(force: true)
+            self.flushBuffer(&buffer,
+                             conversationID: conversationID,
+                             messageID: messageID,
+                             startedAt: startedAt,
+                             force: true)
             self.finishMessage(conversationID: conversationID,
                                messageID: messageID,
-                               cancelled: Task.isCancelled,
-                               empty: buffer.isEmpty && reasoningBuffer.isEmpty)
-            _ = finished
+                               cancelled: !completed && Task.isCancelled,
+                               empty: buffer.text.isEmpty && buffer.reasoning.isEmpty)
             self.isStreaming = false
             self.streamTask = nil
             self.scheduleSave()
